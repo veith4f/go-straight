@@ -1,0 +1,28 @@
+services:
+  go-straight:
+    build:
+      context: .
+      dockerfile: docker/go-straight
+      target: dev
+    platform: linux/amd64
+    # command: "/go-straight"
+    volumes:
+      - .:/workspace:rw
+    #ports:
+    #  - "8080:8080"
+    #environment:
+    #  - ENV_VAR=value
+    networks:
+      - devnet
+  #db:
+  #  image: postgres:latest
+  #  environment:
+  #    - POSTGRES_USER=user
+  #    - POSTGRES_PASSWORD=password
+  #    - POSTGRES_DB=mydb
+  #  networks:
+  #    - devnet
+
+networks:
+  devnet:
+    driver: bridge

@@ -1,0 +1,25 @@
+FROM docker.io/golang:1.24.1 AS build
+ARG TARGETOS
+ARG TARGETARCH
+ARG TEST
+
+RUN apt update && apt install -y git vim nano curl wget python3-pip pipx unzip docker && curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-amd64 && chmod +x ./kind &&mv ./kind /usr/local/bin/kind && curl -L -o kubebuilder https://go.kubebuilder.io/dl/latest/linux/amd64 && chmod +x kubebuilder && mv kubebuilder /usr/local/bin/ && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && chmod +x kubectl && mv kubectl /usr/local/bin/kubectl && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && ./aws/install && rm awscliv2.zip && pipx install python-openstackclient && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+
+FROM docker.io/golang:1.24.1 AS dev
+COPY --from=build /usr /usr
+WORKDIR /workspace
+ENV GOPATH=/workspace/.go
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go mod tidy
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o /go-straight cmd/main.go
+
+CMD ["/go-straight"]
+
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/static:nonroot AS prod
+WORKDIR /
+COPY --from=dev /go-straight .
+USER 65532:65532
