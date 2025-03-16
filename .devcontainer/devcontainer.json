@@ -5,11 +5,8 @@
   "build": {
     "context": "..",
     "target": "dev",
-    "dockerfile": "../docker/go-straight",
+    "dockerfile": "../Dockerfile",
   },
-  "mounts": [
-    "type=bind,source=${localWorkspaceFolder},target=/workspace"
-  ],
   "workspaceFolder": "/workspace",
   "runArgs": ["--network=host"],
   "customizations": {

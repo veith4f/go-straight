@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -14,103 +15,10 @@ import (
 	"github.com/veith4f/go-straight/pkg/assets"
 )
 
-/*
-// extractTarGz extracts a .tar.gz file
-func (p *Project) _extractTarGz(filename string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close() //nolint:errcheck
-
-	gzr, err := gzip.NewReader(file)
-	if err != nil {
-		return err
-	}
-	defer gzr.Close() //nolint:errcheck
-
-	tr := tar.NewReader(gzr)
-
-	for {
-		header, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-
-		path := header.Name
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(filepath.Join(p.vars.ProjectDir, path), 0755); err != nil {
-				return err
-			}
-		case tar.TypeReg:
-			outFile, err := os.Create(filepath.Join(p.vars.ProjectDir, path))
-			if err != nil {
-				return err
-			}
-			_, err = io.Copy(outFile, tr)
-			err2 := outFile.Close()
-			if err != nil || err2 != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (p *Project) downloadTools() error {
-	osName := strings.ToLower(runtime.GOOS)
-	arch := runtime.GOARCH
-	version := "1.64.7"
-
-	// Construct download URL
-	url := fmt.Sprintf("https://github.com/golangci/golangci-lint/releases/download/v%s/golangci-lint-%s-%s-%s.tar.gz",
-		version, version, osName, arch)
-
-	// Download the file
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("Error downloading %s: %w", url, err)
-	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	// Create a temp file
-	archiveName := "golangci-lint.tar.gz"
-	outFile, err := os.Create(filepath.Join(p.vars.ProjectDir, archiveName))
-	if err != nil {
-		return fmt.Errorf("Error opening file for writing %s: %w", archiveName, err)
-	}
-	defer outFile.Close() //nolint:errcheck
-
-	// Write to file
-	_, err = io.Copy(outFile, resp.Body)
-	if err != nil {
-		return fmt.Errorf("Error saving file: %w", err)
-	}
-
-	// Extract the archive
-	if err := p._extractTarGz(archiveName); err != nil {
-		return fmt.Errorf("Error extracting archive %s: %w", archiveName, err)
-	}
-	_ = os.Remove(archiveName)
-
-	if err := os.MkdirAll(filepath.Join(p.vars.ProjectDir, "bin"), 0755); err != nil {
-		return fmt.Errorf("Error creating bin directory: %w", err)
-	}
-
-	extractedDirName := fmt.Sprintf("golangci-lint-%s-%s-%s", version, osName, arch)
-	if err := os.Rename(extractedDirName, "bin/golangci-lint"); err != nil {
-		return fmt.Errorf("Error moving moving binary: %w", err)
-	}
-
-	_ = os.RemoveAll(extractedDirName)
-
-	return nil
-}
-*/
+var (
+	CHOICE_YES *regexp.Regexp = regexp.MustCompile(`[yY](es)?`)
+	CHOICE_NO  *regexp.Regexp = regexp.MustCompile(`[nN]o?`)
+)
 
 func (p *Project) runCmd(cmdName string, cmdArgs ...string) error {
 	cmd := exec.Command(cmdName, cmdArgs...)
@@ -202,42 +110,51 @@ func (p *Project) goModInitTidy() error {
 func (p *Project) askAddRemotePush() error {
 	reader := bufio.NewReader(os.Stdin)
 
-	// Ask the user if they want to add a remote repository
-	fmt.Print("Now would be a good time to create and add an empty remote repository. Do you want to add one? (y/n) ")
-	choice, _ := reader.ReadString('\n')
-	choice = strings.TrimSpace(strings.ToLower(choice))
+	var remoteHandled bool = false
 
-	if choice == "y" || choice == "yes" || choice == "Yes" {
-		for {
-			// Ask for the remote repository URL
-			fmt.Print("Enter the remote repository URL: ")
-			repoURL, _ := reader.ReadString('\n')
-			repoURL = strings.TrimSpace(repoURL)
+	for !remoteHandled {
+		// Ask the user if they want to add a remote repository
+		fmt.Print("Now would be a good time to create and add an empty remote repository. Do you want to add one? (y/n) ")
+		choice, _ := reader.ReadString('\n')
+		choice = strings.TrimSpace(strings.ToLower(choice))
 
-			// Check if the remote repository exists
-			if p.runCmd("git", "ls-remote", repoURL) == nil {
-				// Add the remote repository
-				if err := p.runCmd("git", "remote", "add", "origin", repoURL); err != nil {
-					return fmt.Errorf("Error adding remote: %w", err)
-				}
+		if CHOICE_YES.MatchString(choice) {
+			for {
+				// Ask for the remote repository URL
+				fmt.Print("Enter the remote repository URL: ")
+				repoURL, _ := reader.ReadString('\n')
+				repoURL = strings.TrimSpace(repoURL)
 
-				// Push to the repository and set upstream
-				fmt.Println("Remote repository added. Pushing...")
-				if err := p.runCmd("git", "push", "--set-upstream", "origin", "main"); err != nil {
-					return fmt.Errorf("Error pushing: %w", err)
-				}
-				fmt.Println("Pushed.")
-				break
-			} else {
-				// Repository doesn't exist or is inaccessible
-				fmt.Print("Error: The repository does not exist or is inaccessible. Try again? (y/n) ")
-				retry, _ := reader.ReadString('\n')
-				retry = strings.TrimSpace(strings.ToLower(retry))
+				// Check if the remote repository exists
+				if p.runCmd("git", "ls-remote", repoURL) == nil {
+					// Add the remote repository
+					if err := p.runCmd("git", "remote", "add", "origin", repoURL); err != nil {
+						return fmt.Errorf("Error adding remote: %w", err)
+					}
 
-				if retry != "y" && retry != "yes" {
+					// Push to the repository and set upstream
+					fmt.Println("Remote repository added. Pushing...")
+					if err := p.runCmd("git", "push", "--set-upstream", "origin", "main"); err != nil {
+						return fmt.Errorf("Error pushing: %w", err)
+					}
+					fmt.Println("Pushed.")
+					remoteHandled = true
 					break
+				} else {
+					// Repository doesn't exist or is inaccessible
+					fmt.Print("Error: The repository does not exist or is inaccessible. Try again? (y/n) ")
+					retry, _ := reader.ReadString('\n')
+					retry = strings.TrimSpace(retry)
+
+					if CHOICE_NO.MatchString(retry) {
+						remoteHandled = true
+						break
+					}
 				}
 			}
+
+		} else if CHOICE_NO.MatchString(choice) {
+			break
 		}
 	}
 	return nil
