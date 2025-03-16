@@ -11,6 +11,24 @@ CLI-tool that scaffolds a go project targeted at shipping binaries and or docker
 
 ## Getting started
 ```makefile
+REGISTRY = node-647ee1368442ecd1a315c673.ps-xaas.io/pluscontainer
+OS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH ?= $(shell uname -m)
+ifeq ($(ARCH),aarch64)
+  ARCH := arm64
+endif
+VERSION ?= $(shell cat VERSION)
+IMG ?= go-straight
+
+.PHONY: embed lint test e2etest build run release docker-dev docker-prod docker-release
+
+embed:
+	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
+		go-bindata -o pkg/project/assets.go -pkg=project -prefix "assets/template"  assets/template/...; \
+	else \
+		docker-compose run --rm --remove-orphans ${IMG} go-bindata -o pkg/assets/embed.go -pkg=assets -prefix "assets/embed"  assets/embed/...; \
+	fi
+
 lint: embed
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
 		go mod tidy && golangci-lint run; \
@@ -64,4 +82,5 @@ docker-release:
 	docker build --target prod --platform linux/amd64 -f Dockerfile . -t ${REGISTRY}/${IMG}:${VERSION} -t ${REGISTRY}/${IMG}:latest
 	docker push --platform linux/amd64 ${REGISTRY}/${IMG}:${VERSION}
 	docker push --platform linux/amd64 ${REGISTRY}/${IMG}:latest
+
 ```
