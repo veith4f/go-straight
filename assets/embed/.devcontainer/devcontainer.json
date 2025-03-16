@@ -1,0 +1,47 @@
+{
+    "name": "Go Development Container",
+    "dockerComposeFile": ["../docker-compose.yml"],
+    "service": "{{.ProjectName}}",
+    "build": {
+      "context": "..",
+      "target": "dev",
+      "dockerfile": "../Dockerfile",
+    },
+    "mounts": [
+      "type=bind,source=\${localWorkspaceFolder},target=/workspace"
+    ],
+    "workspaceFolder": "/workspace",
+    "runArgs": ["--network=host"],
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "git.useEditorAsCommitInput": false,
+          "terminal.integrated.defaultProfile.linux": "bash",
+          "terminal.integrated.profiles.linux": {
+              "bash": {
+                  "path": "/usr/bin/flatpak-spawn",
+                  "args": ["--host", "--env=TERM=xterm-256color", "bash"]
+              }
+          }
+        },
+        "extensions": [
+          "golang.go",
+          "maracko.json-to-go",
+          "ms-vsliveshare.vsliveshare",
+          "AdamViola.parquet-explorer",
+          "ms-azuretools.vscode-docker"
+        ]
+      }
+    },
+    "shutdownAction": "stopCompose",
+    "onCreateCommand": "bash docker network create -d=bridge --subnet=172.19.0.0/24 kind",
+    "postStartCommand": {
+      "install user specified prerequisits if they exist": "if test -f .prereq.sh; then sh .prereq.sh; fi",
+      "make devcontainer git repo safe":"git config --global --add safe.directory \${containerWorkspaceFolder}/.devcontainer",
+      "get all go packages": "/usr/local/go/bin/go get ."
+    },
+    "remoteEnv": {
+      "LOGLEVEL": "DEBUG"
+    }
+  }
+  

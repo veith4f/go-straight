@@ -2,55 +2,66 @@ REGISTRY = node-647ee1368442ecd1a315c673.ps-xaas.io/pluscontainer
 IMG ?= go-straight
 VERSION ?= $(shell cat VERSION)
 
-.PHONY: lint test build run
+.PHONY: embed lint test e2etest build run docker-dev docker-prod docker-push release
 
-lint:
-	@go mod tidy
-	@if command -v golangci-lint &> /dev/null; then \
-		golangci-lint run; \
+#goreleaser release --snapshot --clean
+
+embed:
+	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
+		go-bindata -o pkg/project/assets.go -pkg=project -prefix "assets/template"  assets/template/...; \
 	else \
-		bin/golangci-lint run; \
+		docker-compose run --rm ${IMG} go-bindata -o pkg/assets/embed.go -pkg=assets -prefix "assets/embed"  assets/embed/...; \
 	fi
 
-test:
+lint: embed
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
-		command -v go &> /dev/null || ( echo "Please install go" && exit 1 ); \
+		go mod tidy && golangci-lint run; \
+	else \
+		docker-compose run --rm ${IMG} sh -c "go mod tidy && golangci-lint run"; \
+	fi
+
+test: embed
+	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
 		go mod tidy && go test ./pkg/...; \
 	else \
-		command -v docker-compose &> /dev/null || ( echo "Please install docker-compose" && exit 1 ); \
-		docker-compose run --rm --remove-orphans ${IMG} sh -c "go mod tidy && go test ./pkg/..."; \
+		docker-compose run --rm ${IMG} sh -c "go mod tidy && go test ./pkg/..."; \
 	fi
 
-e2etest:
+e2etest: embed
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
-		command -v go &> /dev/null || ( echo "Please install go" && exit 1 ); \
 		go mod tidy && go test ./test/...; \
 	else \
-		command -v go &> /dev/null || ( echo "Please install go" && exit 1 ); \
-		go mod tidy && go test ./test/...; \
+		docker-compose run --rm ${IMG} sh -c "go mod tidy && go test ./test/..."; \
 	fi
 
 
-build:
+build: embed
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
-		command -v go &> /dev/null || ( echo "Please install go" && exit 1 ); \
-		go build -o bin/${IMG} cmd/main.go; \
+		goreleaser build --clean --snapshot; \
 	else \
-		command -v go &> /dev/null || ( echo "Please install docker-compose" && exit 1 ); \
-		docker-compose build; \
+		docker-compose run --rm ${IMG} goreleaser build --clean --snapshot; \
 	fi
 
 run:
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
 		bin/$(IMG); \
 	else \
-		command -v go &> /dev/null || ( echo "Please install docker-compose" && exit 1 ); \
 		docker-compose up; \
 	fi
 
-docker-build:
-	docker build -f docker/${IMG} . --target prod -t ${REGISTRY}/${IMG}:${VERSION} -t ${REGISTRY}/${IMG}:latest
+docker-dev:
+	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
+		echo "Cannot build devcontainer in devcontainer"; \
+	else \
+		docker-compose build; \
+	fi
+
+docker-prod:
+	docker build --target prod --platform linux/amd64 -f Dockerfile . -t ${REGISTRY}/${IMG}:${VERSION} -t ${REGISTRY}/${IMG}:latest
 
 docker-push:
 	docker push ${REGISTRY}/${IMG}:${VERSION}
 	docker push ${REGISTRY}/${IMG}:latest
+
+release:
+	docker-compose run ${IMG} goreleaser release --clean

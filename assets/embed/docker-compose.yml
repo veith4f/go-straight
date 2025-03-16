@@ -1,10 +1,11 @@
 services:
-  go-straight:
+  {{.ProjectName}}:
     build:
       target: dev
-    # command: "/go-straight"
+    platform: linux/amd64
+    # command: "/$project_name"
     volumes:
-      - .:/workspace:rw
+      - .:/workspace
     #ports:
     #  - "8080:8080"
     #environment:
