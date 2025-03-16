@@ -8,7 +8,7 @@
       "dockerfile": "../Dockerfile",
     },
     "mounts": [
-      "type=bind,source=\${localWorkspaceFolder},target=/workspace"
+        "type=bind,source=${localWorkspaceFolder},target=/workspace"
     ],
     "workspaceFolder": "/workspace",
     "runArgs": ["--network=host"],
@@ -37,7 +37,7 @@
     "onCreateCommand": "bash docker network create -d=bridge --subnet=172.19.0.0/24 kind",
     "postStartCommand": {
       "install user specified prerequisits if they exist": "if test -f .prereq.sh; then sh .prereq.sh; fi",
-      "make devcontainer git repo safe":"git config --global --add safe.directory \${containerWorkspaceFolder}/.devcontainer",
+      "make devcontainer git repo safe":"git config --global --add safe.directory ${containerWorkspaceFolder}/.devcontainer",
       "get all go packages": "/usr/local/go/bin/go get ."
     },
     "remoteEnv": {

@@ -7,6 +7,9 @@
     "target": "dev",
     "dockerfile": "../Dockerfile",
   },
+  "mounts": [
+        "type=bind,source=${localWorkspaceFolder},target=/workspace"
+    ],
   "workspaceFolder": "/workspace",
   "runArgs": ["--network=host"],
   "customizations": {

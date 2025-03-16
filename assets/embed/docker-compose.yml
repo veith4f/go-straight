@@ -2,10 +2,10 @@ services:
   {{.ProjectName}}:
     build:
       target: dev
-    platform: linux/amd64
     # command: "/{{.ProjectName}}"
     volumes:
       - .:/workspace:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     #ports:
     #  - "8080:8080"
     #environment:
