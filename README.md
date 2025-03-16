@@ -9,7 +9,14 @@ CLI-tool that scaffolds a go project targeted at shipping binaries and or docker
 - binary releases for all platforms using [goreleaser](https://goreleaser.com/)
 - [Makefile](https://www.gnu.org/software/make/) with streamlined operations
 
+## Prerequisites
+- Docker
+- docker-compose
+- git
+- go
+
 ## Getting started
+Go straight itself is created with Go straight. Therefore this repository serves as an example of the structure it will set up. Its `Makefile` provides streamlined operations.
 ```makefile
 embed:
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
