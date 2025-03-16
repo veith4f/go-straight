@@ -3,7 +3,7 @@ services:
     build:
       target: dev
     platform: linux/amd64
-    # command: "/$project_name"
+    # command: "/{{.ProjectName}}"
     volumes:
       - .:/workspace
     #ports:

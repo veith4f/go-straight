@@ -31,3 +31,6 @@ go.work
 
 # macOS
 .DS_Store
+
+# ignore embedded assets
+pkg/assets/embed.go

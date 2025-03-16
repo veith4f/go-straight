@@ -34,3 +34,6 @@ go.work
 
 # Added by goreleaser init:
 dist/
+
+# ignore embedded assets
+pkg/assets/embed.go

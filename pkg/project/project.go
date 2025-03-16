@@ -14,6 +14,116 @@ import (
 	"github.com/veith4f/go-straight/pkg/assets"
 )
 
+/*
+// extractTarGz extracts a .tar.gz file
+func (p *Project) _extractTarGz(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close() //nolint:errcheck
+
+	gzr, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer gzr.Close() //nolint:errcheck
+
+	tr := tar.NewReader(gzr)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		path := header.Name
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(filepath.Join(p.vars.ProjectDir, path), 0755); err != nil {
+				return err
+			}
+		case tar.TypeReg:
+			outFile, err := os.Create(filepath.Join(p.vars.ProjectDir, path))
+			if err != nil {
+				return err
+			}
+			_, err = io.Copy(outFile, tr)
+			err2 := outFile.Close()
+			if err != nil || err2 != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Project) downloadTools() error {
+	osName := strings.ToLower(runtime.GOOS)
+	arch := runtime.GOARCH
+	version := "1.64.7"
+
+	// Construct download URL
+	url := fmt.Sprintf("https://github.com/golangci/golangci-lint/releases/download/v%s/golangci-lint-%s-%s-%s.tar.gz",
+		version, version, osName, arch)
+
+	// Download the file
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("Error downloading %s: %w", url, err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	// Create a temp file
+	archiveName := "golangci-lint.tar.gz"
+	outFile, err := os.Create(filepath.Join(p.vars.ProjectDir, archiveName))
+	if err != nil {
+		return fmt.Errorf("Error opening file for writing %s: %w", archiveName, err)
+	}
+	defer outFile.Close() //nolint:errcheck
+
+	// Write to file
+	_, err = io.Copy(outFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("Error saving file: %w", err)
+	}
+
+	// Extract the archive
+	if err := p._extractTarGz(archiveName); err != nil {
+		return fmt.Errorf("Error extracting archive %s: %w", archiveName, err)
+	}
+	_ = os.Remove(archiveName)
+
+	if err := os.MkdirAll(filepath.Join(p.vars.ProjectDir, "bin"), 0755); err != nil {
+		return fmt.Errorf("Error creating bin directory: %w", err)
+	}
+
+	extractedDirName := fmt.Sprintf("golangci-lint-%s-%s-%s", version, osName, arch)
+	if err := os.Rename(extractedDirName, "bin/golangci-lint"); err != nil {
+		return fmt.Errorf("Error moving moving binary: %w", err)
+	}
+
+	_ = os.RemoveAll(extractedDirName)
+
+	return nil
+}
+*/
+
+func (p *Project) runCmd(cmdName string, cmdArgs ...string) error {
+	cmd := exec.Command(cmdName, cmdArgs...)
+	cmd.Dir = p.vars.ProjectDir
+
+	// Set up the standard output and error streams
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// Run the command and wait for it to complete
+	return cmd.Run()
+}
+
 func (p *Project) writeFiles() error {
 
 	// Create directories
@@ -46,24 +156,22 @@ func (p *Project) writeFiles() error {
 	return nil
 }
 
-func (p *Project) gitInitCommit() error {
+func (p *Project) gitInit() error {
 
-	cmd := exec.Command("git", "init")
-	cmd.Dir = p.vars.ProjectDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
+	if err := p.runCmd("git", "init"); err != nil {
 		return fmt.Errorf("Error initializing Git repository: %w", err)
 	}
 
-	cmd = exec.Command("git", "add", "-A")
-	if err := cmd.Run(); err != nil {
+	return nil
+}
+
+func (p *Project) gitAddCommit() error {
+
+	if err := p.runCmd("git", "add", "-A"); err != nil {
 		return fmt.Errorf("Error adding files to Git repository: %w", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
-	if err := cmd.Run(); err != nil {
+	if err := p.runCmd("git", "commit", "-m", "Initial commit"); err != nil {
 		return fmt.Errorf("Error adding files to Git repository: %w", err)
 	}
 
@@ -71,11 +179,8 @@ func (p *Project) gitInitCommit() error {
 }
 
 func (p *Project) dockerDev() error {
-	cmd := exec.Command("make", "docker-dev")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := p.runCmd("make", "docker-dev"); err != nil {
 		return fmt.Errorf("Error building dev container: %w", err)
 	}
 
@@ -83,16 +188,12 @@ func (p *Project) dockerDev() error {
 }
 
 func (p *Project) goModInitTidy() error {
-	cmd := exec.Command("go", "mod", "init", p.vars.ModuleName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := p.runCmd("go", "mod", "init", p.vars.ModuleName); err != nil {
 		return fmt.Errorf("Error initializing Go module: %w", err)
 	}
 
-	cmd = exec.Command("go", "mod", "tidy")
-	if err := cmd.Run(); err != nil {
+	if err := p.runCmd("go", "mod", "tidy"); err != nil {
 		return fmt.Errorf("Error tidying Go module: %w", err)
 	}
 	return nil
@@ -114,22 +215,18 @@ func (p *Project) askAddRemotePush() error {
 			repoURL = strings.TrimSpace(repoURL)
 
 			// Check if the remote repository exists
-			cmd := exec.Command("git", "ls-remote", repoURL)
-			if err := cmd.Run(); err == nil {
+			if p.runCmd("git", "ls-remote", repoURL) == nil {
 				// Add the remote repository
-				err := exec.Command("git", "remote", "add", "origin", repoURL).Run()
-				if err == nil {
-					fmt.Println("Remote repository added. Pushing...")
-
-					// Push to the repository and set upstream
-					err := exec.Command("git", "push", "--set-upstream", "origin", "main").Run()
-					if err != nil {
-						fmt.Println("Done.")
-					} else {
-						fmt.Println("Error pushing:", err)
-					}
+				if err := p.runCmd("git", "remote", "add", "origin", repoURL); err != nil {
+					return fmt.Errorf("Error adding remote: %w", err)
 				}
 
+				// Push to the repository and set upstream
+				fmt.Println("Remote repository added. Pushing...")
+				if err := p.runCmd("git", "push", "--set-upstream", "origin", "main"); err != nil {
+					return fmt.Errorf("Error pushing: %w", err)
+				}
+				fmt.Println("Pushed.")
 				break
 			} else {
 				// Repository doesn't exist or is inaccessible
@@ -146,7 +243,17 @@ func (p *Project) askAddRemotePush() error {
 	return nil
 }
 
+func (p *Project) projectDir() error {
+	return os.MkdirAll(p.vars.ProjectDir, 0755)
+}
+
 func (p *Project) GoStraight() error {
+	if err := p.projectDir(); err != nil {
+		return err
+	}
+	if err := p.gitInit(); err != nil {
+		return err
+	}
 	if err := p.writeFiles(); err != nil {
 		return err
 	}
@@ -156,7 +263,7 @@ func (p *Project) GoStraight() error {
 	if err := p.dockerDev(); err != nil {
 		return err
 	}
-	if err := p.gitInitCommit(); err != nil {
+	if err := p.gitAddCommit(); err != nil {
 		return err
 	}
 	if err := p.askAddRemotePush(); err != nil {
