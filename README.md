@@ -20,7 +20,7 @@ CLI-tool that scaffolds a go project targeted at shipping binaries and or docker
 ## Usage
 ```bash
 Usage:
-  go-straight -m module-name -c copyright-name -e email-address <path/to/projectdir> [flags]
+  go-straight -m module-name -c copyright-name <path/to/projectdir> [flags]
 
 Flags:
   -a, --author string        Project author's full name.
