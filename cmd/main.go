@@ -16,7 +16,7 @@ func main() {
 
 	// Create the command
 	var cmd = &cobra.Command{
-		Use:   "go-straight -m module-name -c copyright-name -e email-address <path/to/projectdir>",
+		Use:   "go-straight -m module-name -c copyright-name <path/to/projectdir>",
 		Short: "Create a straight project directory with tests, devcontainer docker-composea and makefile.",
 		Args:  cobra.ExactArgs(1), // Ensures that exactly one argument (the directory path) is passed
 		Run: func(cmd *cobra.Command, args []string) {
