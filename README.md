@@ -9,13 +9,32 @@ CLI-tool that scaffolds a go project targeted at shipping binaries and or docker
 - binary releases for all platforms using [goreleaser](https://goreleaser.com/)
 - [Makefile](https://www.gnu.org/software/make/) with streamlined operations
 
-## Prerequisites
+## Installation
+1. Make sure you have the following installed.
 - Docker
 - docker-compose
 - git
 - go
+2. Get yourself a binary from the [releases page](https://github.com/veith4f/go-straight/releases) and put in /usr/local/bin.
 
-## Getting started
+## Usage
+```bash
+Usage:
+  go-straight -m module-name -c copyright-name -e email-address <path/to/projectdir> [flags]
+
+Flags:
+  -a, --author string        Project author's full name.
+  -h, --help                 help for go-straight
+  -m, --module-name string   Go module name used for this project.
+```
+go-straight will
+- create files and directories
+- create a container using docker/docker-compose
+- init a local git repo and go module
+- ask whether you want to add a remote repo
+
+
+## Working in a project
 Go straight itself is created with Go straight. Therefore this repository serves as an example of the structure it will set up. Its `Makefile` provides streamlined operations.
 ```makefile
 embed:
