@@ -11,10 +11,9 @@ CLI-tool that scaffolds a go project targeted at shipping binaries and or docker
 
 ## Installation
 1. Make sure you have the following installed.
+- Git
 - Docker
-- docker-compose
-- git
-- go
+- Docker-Compose
 2. Get yourself a binary from the [releases page](https://github.com/veith4f/go-straight/releases) and put in /usr/local/bin.
 
 ## Usage
@@ -41,28 +40,28 @@ embed:
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
 		go-bindata -o pkg/project/assets.go -pkg=project -prefix "assets/template"  assets/template/...; \
 	else \
-		docker-compose run --rm --remove-orphans ${IMG} go-bindata -o pkg/assets/embed.go -pkg=assets -prefix "assets/embed"  assets/embed/...; \
+		docker-compose run -T --rm --remove-orphans ${IMG} go-bindata -o pkg/assets/embed.go -pkg=assets -prefix "assets/embed"  assets/embed/...; \
 	fi
 
 lint: embed
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
 		go mod tidy && golangci-lint run; \
 	else \
-		docker-compose run --rm --remove-orphans ${IMG} golangci-lint run; \
+		docker-compose run -T --rm --remove-orphans ${IMG} sh -c "go mod tidy && golangci-lint run"; \
 	fi
 
-test: embed
+test: lint
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
-		go mod tidy && go test ./pkg/...; \
+		go test ./pkg/...; \
 	else \
-		docker-compose run --rm --remove-orphans ${IMG} go test ./pkg/...; \
+		docker-compose run -T --rm --remove-orphans ${IMG} go test ./pkg/...; \
 	fi
 
-e2etest: embed
+e2etest: lint
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
-		go mod tidy && go test ./test/...; \
+		go test ./test/...; \
 	else \
-		docker-compose run --rm --remove-orphans ${IMG} go test ./test/...; \
+		docker-compose run -T --rm --remove-orphans ${IMG} go test ./test/...; \
 	fi
 
 
@@ -70,7 +69,7 @@ build: embed
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
 		goreleaser build --clean --snapshot; \
 	else \
-		docker-compose run --rm --remove-orphans ${IMG} goreleaser build --clean --snapshot; \
+		docker-compose run -T --rm --remove-orphans ${IMG} goreleaser build --clean --snapshot; \
 	fi
 
 run: embed
@@ -81,7 +80,7 @@ run: embed
 	fi
 
 release: embed
-	docker-compose run --rm --remove-orphans ${IMG} goreleaser release --clean
+	docker-compose run -T --rm --remove-orphans ${IMG} goreleaser release --clean
 
 docker-dev: 
 	@if [ -f /.dockerenv ] || ( [ -f /proc/self/cgroup ] && grep -qE 'docker|containerd' /proc/self/cgroup ); then \
@@ -97,5 +96,4 @@ docker-release:
 	docker build --target prod --platform linux/amd64 -f Dockerfile . -t ${REGISTRY}/${IMG}:${VERSION} -t ${REGISTRY}/${IMG}:latest
 	docker push --platform linux/amd64 ${REGISTRY}/${IMG}:${VERSION}
 	docker push --platform linux/amd64 ${REGISTRY}/${IMG}:latest
-
 ```

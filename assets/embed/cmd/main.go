@@ -11,7 +11,7 @@ import (
 
 // Define the root command
 var rootCmd = &cobra.Command{
-	Use:   "$project_name",
+	Use:   "{{.ProjectName}}",
 	Short: "A simple CLI app",
 	Long:  "A longer description of your app.",
 	Run: func(cmd *cobra.Command, args []string) {

@@ -95,14 +95,10 @@ func (p *Project) dockerDev() error {
 	return nil
 }
 
-func (p *Project) goModInitTidy() error {
+func (p *Project) makeLint() error {
 
-	if err := p.runCmd("go", "mod", "init", p.vars.ModuleName); err != nil {
-		return fmt.Errorf("Error initializing Go module: %w", err)
-	}
-
-	if err := p.runCmd("go", "mod", "tidy"); err != nil {
-		return fmt.Errorf("Error tidying Go module: %w", err)
+	if err := p.runCmd("make", "lint"); err != nil {
+		return fmt.Errorf("Error linting: %w", err)
 	}
 	return nil
 }
@@ -174,10 +170,10 @@ func (p *Project) GoStraight() error {
 	if err := p.writeFiles(); err != nil {
 		return err
 	}
-	if err := p.goModInitTidy(); err != nil {
+	if err := p.dockerDev(); err != nil {
 		return err
 	}
-	if err := p.dockerDev(); err != nil {
+	if err := p.makeLint(); err != nil {
 		return err
 	}
 	if err := p.gitAddCommit(); err != nil {
